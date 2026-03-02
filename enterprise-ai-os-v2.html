@@ -1,0 +1,1576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<title>企业智能操作系统 — 架构设计</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #060D1F;
+    --dark: #0A1628;
+    --panel: #0F1E35;
+    --panel2: #132240;
+    --border: #1E3A5F;
+    --border2: #254575;
+    --blue: #1B6FE8;
+    --cyan: #00C8FF;
+    --teal: #00D4B4;
+    --purple: #7C3AED;
+    --gold: #F59E0B;
+    --green: #10B981;
+    --orange: #F97316;
+    --red: #EF4444;
+    --text: #E8F0FE;
+    --muted: #6B8CAD;
+    --dim: #3A5A7A;
+    --glow: rgba(0,200,255,0.15);
+    --ff-display: 'DM Sans', sans-serif;
+    --ff-mono: 'Space Mono', monospace;
+    --ff-body: 'Noto Sans SC', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--navy);
+    color: var(--text);
+    font-family: var(--ff-body);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ─── SCROLLBAR ─── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--dark); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* ─── NAV ─── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(6,13,31,0.92);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 56px;
+  }
+  .nav-logo {
+    font-family: var(--ff-mono); font-size: 12px; color: var(--cyan);
+    letter-spacing: 2px; text-transform: uppercase;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .nav-logo::before {
+    content: ''; display: block;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50% { opacity:0.5; transform:scale(0.7); }
+  }
+  .nav-links {
+    display: flex; gap: 6px;
+    list-style: none;
+  }
+  .nav-links a {
+    font-size: 12px; color: var(--muted);
+    text-decoration: none; padding: 6px 14px;
+    border-radius: 4px; transition: all 0.2s;
+    font-family: var(--ff-mono);
+    letter-spacing: 0.5px;
+  }
+  .nav-links a:hover { color: var(--cyan); background: rgba(0,200,255,0.08); }
+
+  /* ─── HERO ─── */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 100px 40px 60px;
+    position: relative; overflow: hidden;
+    text-align: center;
+  }
+  .hero-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(30,58,95,0.3) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(30,58,95,0.3) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse at center, black 20%, transparent 80%);
+  }
+  .hero-glow {
+    position: absolute;
+    width: 700px; height: 700px;
+    background: radial-gradient(circle, rgba(27,111,232,0.12) 0%, transparent 70%);
+    top: 50%; left: 50%; transform: translate(-50%,-50%);
+    pointer-events: none;
+  }
+  .hero-tag {
+    font-family: var(--ff-mono); font-size: 11px;
+    color: var(--cyan); letter-spacing: 3px;
+    text-transform: uppercase;
+    border: 1px solid rgba(0,200,255,0.3);
+    padding: 6px 20px; border-radius: 20px;
+    margin-bottom: 32px;
+    background: rgba(0,200,255,0.06);
+    position: relative;
+  }
+  .hero h1 {
+    font-family: var(--ff-display); font-size: clamp(40px, 6vw, 80px);
+    font-weight: 700; line-height: 1.1;
+    color: #fff;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .hero h1 span { color: var(--cyan); }
+  .hero h2 {
+    font-size: clamp(18px, 2.5vw, 28px); font-weight: 300;
+    color: var(--muted); margin-bottom: 40px;
+    position: relative;
+  }
+  .hero-stats {
+    display: flex; gap: 48px; margin-bottom: 48px;
+    position: relative;
+  }
+  .hero-stat { text-align: center; }
+  .hero-stat .num {
+    font-family: var(--ff-mono); font-size: 36px; font-weight: 700;
+    color: var(--cyan); display: block; line-height: 1;
+  }
+  .hero-stat .label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .hero-badges {
+    display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+    position: relative;
+  }
+  .badge {
+    font-size: 11px; padding: 5px 14px;
+    border-radius: 4px; font-family: var(--ff-mono);
+    border: 1px solid;
+  }
+  .badge-blue { color: #60A5FA; border-color: rgba(96,165,250,0.3); background: rgba(96,165,250,0.08); }
+  .badge-teal { color: var(--teal); border-color: rgba(0,212,180,0.3); background: rgba(0,212,180,0.08); }
+  .badge-purple { color: #A78BFA; border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.08); }
+  .badge-gold { color: var(--gold); border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.08); }
+  .badge-green { color: var(--green); border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); }
+
+  /* ─── SECTION ─── */
+  section {
+    padding: 80px 40px;
+    max-width: 1300px; margin: 0 auto;
+  }
+  .section-header {
+    display: flex; align-items: baseline; gap: 16px;
+    margin-bottom: 48px;
+  }
+  .section-num {
+    font-family: var(--ff-mono); font-size: 11px;
+    color: var(--cyan); opacity: 0.6;
+  }
+  .section-title {
+    font-size: 28px; font-weight: 700;
+    color: #fff;
+  }
+  .section-title span { color: var(--cyan); }
+  .section-line {
+    flex: 1; height: 1px;
+    background: linear-gradient(90deg, var(--border), transparent);
+    margin-left: 16px;
+  }
+
+  /* ─── ARCH LAYERS ─── */
+  .arch-wrapper {
+    position: relative;
+  }
+  .arch-layers {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .arch-layer {
+    display: grid; grid-template-columns: 100px 1fr;
+    border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+  }
+  .arch-layer::before {
+    content: ''; position: absolute; inset: 0;
+    opacity: 0; transition: opacity 0.25s;
+    pointer-events: none;
+  }
+  .arch-layer:hover { border-color: var(--border2); transform: translateX(4px); }
+  .arch-layer:hover::before { opacity: 1; }
+  .layer-tag {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 18px 8px; font-family: var(--ff-mono);
+    font-size: 11px; text-align: center; gap: 4px;
+    border-right: 1px solid rgba(255,255,255,0.06);
+  }
+  .layer-num { font-size: 18px; font-weight: 700; }
+  .layer-name { opacity: 0.7; }
+  .layer-body {
+    display: flex; align-items: center; gap: 24px;
+    padding: 16px 24px;
+  }
+  .layer-title { font-size: 15px; font-weight: 700; min-width: 130px; color: #fff; }
+  .layer-desc { font-size: 13px; color: var(--muted); flex: 1; }
+  .layer-chips {
+    display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;
+  }
+  .chip {
+    font-size: 10px; padding: 3px 8px;
+    border-radius: 3px; font-family: var(--ff-mono);
+    background: rgba(255,255,255,0.06);
+    color: var(--muted); border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  /* Layer color variants */
+  .l7 { background: linear-gradient(135deg, #0F2547 0%, #0A1628 100%); }
+  .l7 .layer-tag { background: rgba(27,111,232,0.2); color: #60A5FA; }
+  .l7:hover { background: linear-gradient(135deg, #162F58 0%, #0F1E35 100%); }
+  .l6 { background: linear-gradient(135deg, #0F1E35 0%, #0A1628 100%); }
+  .l6 .layer-tag { background: rgba(0,200,255,0.15); color: var(--cyan); }
+  .l5 { background: linear-gradient(135deg, #0B2420 0%, #0A1628 100%); }
+  .l5 .layer-tag { background: rgba(0,212,180,0.15); color: var(--teal); }
+  .l5b { background: linear-gradient(135deg, #1A1A0A 0%, #0A1628 100%); }
+  .l5b .layer-tag { background: rgba(234,179,8,0.15); color: #FBBF24; }
+  .l4 { background: linear-gradient(135deg, #0B1F26 0%, #0A1628 100%); }
+  .l4 .layer-tag { background: rgba(8,145,178,0.2); color: #22D3EE; }
+  .l3 { background: linear-gradient(135deg, #10162B 0%, #0A1628 100%); }
+  .l3 .layer-tag { background: rgba(99,102,241,0.2); color: #818CF8; }
+  .l2 { background: linear-gradient(135deg, #160F2C 0%, #0A1628 100%); }
+  .l2 .layer-tag { background: rgba(124,58,237,0.2); color: #A78BFA; }
+  .l1 { background: linear-gradient(135deg, #0F1628 0%, #0A1628 100%); }
+  .l1 .layer-tag { background: rgba(75,85,99,0.3); color: #9CA3AF; }
+
+  /* ─── PLATFORMS GRID ─── */
+  .platforms-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+  }
+  .platform-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+    transition: all 0.3s;
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+  .platform-card:hover {
+    border-color: var(--border2);
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  }
+  .platform-card::after {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+  }
+  .p1::after { background: linear-gradient(90deg, var(--blue), var(--cyan)); }
+  .p2::after { background: linear-gradient(90deg, var(--teal), #0891B2); }
+  .p3::after { background: linear-gradient(90deg, var(--purple), #A78BFA); }
+  .platform-header {
+    padding: 24px 24px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .platform-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .platform-sub {
+    font-family: var(--ff-mono); font-size: 11px;
+    color: var(--muted); margin-bottom: 12px;
+  }
+  .status-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; padding: 3px 10px; border-radius: 12px;
+    font-family: var(--ff-mono);
+  }
+  .status-tag::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+  }
+  .online { background: rgba(16,185,129,0.12); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+  .online::before { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 1.5s infinite; }
+  .building { background: rgba(245,158,11,0.12); color: var(--gold); border: 1px solid rgba(245,158,11,0.3); }
+  .building::before { background: var(--gold); animation: pulse 2s infinite; }
+  .planning { background: rgba(167,139,250,0.12); color: #A78BFA; border: 1px solid rgba(167,139,250,0.3); }
+  .planning::before { background: #A78BFA; }
+  .platform-features { padding: 20px 24px; flex: 1; }
+  .feature-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 7px 0; border-bottom: 1px solid rgba(30,58,95,0.5);
+    font-size: 13px; color: var(--muted);
+  }
+  .feature-item:last-child { border-bottom: none; }
+  .feature-icon {
+    width: 20px; height: 20px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 10px; margin-top: 1px;
+  }
+  .platform-footer {
+    padding: 14px 24px;
+    background: rgba(0,0,0,0.2);
+    border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--dim);
+    font-family: var(--ff-mono);
+  }
+
+  /* ─── DATA + AI GRID ─── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .component-block {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+  }
+  .block-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .block-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .block-title { font-size: 14px; font-weight: 700; color: #fff; }
+  .block-sub { font-size: 11px; color: var(--muted); margin-left: auto; font-family: var(--ff-mono); }
+  .block-body { padding: 16px 20px; }
+  .tech-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 0; border-bottom: 1px solid rgba(30,58,95,0.4);
+  }
+  .tech-row:last-child { border-bottom: none; }
+  .tech-label { font-size: 12px; font-weight: 700; color: var(--text); min-width: 80px; }
+  .tech-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+  .t-tag {
+    font-size: 10px; padding: 2px 8px; border-radius: 3px;
+    font-family: var(--ff-mono);
+  }
+  .tc { background: rgba(0,200,255,0.1); color: var(--cyan); }
+  .tp { background: rgba(124,58,237,0.15); color: #A78BFA; }
+  .tg { background: rgba(16,185,129,0.1); color: var(--green); }
+  .to { background: rgba(249,115,22,0.1); color: var(--orange); }
+  .tb { background: rgba(27,111,232,0.15); color: #60A5FA; }
+
+  /* ─── INFRA ─── */
+  .infra-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+  .infra-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; text-align: center;
+    transition: all 0.2s;
+  }
+  .infra-card:hover { border-color: var(--border2); background: var(--panel2); }
+  .infra-icon { font-size: 24px; margin-bottom: 8px; }
+  .infra-title { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .infra-items { font-size: 10px; color: var(--muted); line-height: 1.8; font-family: var(--ff-mono); }
+
+  .security-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .sec-card {
+    background: rgba(22,15,44,0.8); border: 1px solid rgba(124,58,237,0.2);
+    border-radius: 8px; padding: 16px;
+    transition: all 0.2s;
+  }
+  .sec-card:hover { border-color: rgba(124,58,237,0.5); }
+  .sec-title { font-size: 12px; font-weight: 700; color: #A78BFA; margin-bottom: 8px; }
+  .sec-items { font-size: 10px; color: var(--muted); line-height: 2; font-family: var(--ff-mono); }
+
+  /* ─── ROADMAP ─── */
+  .roadmap-timeline {
+    display: flex; gap: 6px; margin-bottom: 12px;
+    align-items: center;
+  }
+  .tl-segment {
+    flex: 1; height: 4px; border-radius: 2px; position: relative;
+  }
+  .tl-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    position: absolute; top: -4px;
+    border: 2px solid var(--navy);
+  }
+  .roadmap-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .phase-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+  }
+  .phase-header { padding: 20px 22px 16px; border-bottom: 1px solid var(--border); }
+  .phase-tag {
+    font-family: var(--ff-mono); font-size: 10px;
+    letter-spacing: 1px; margin-bottom: 8px; display: block;
+  }
+  .phase-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .phase-period { font-size: 12px; color: var(--muted); font-family: var(--ff-mono); }
+  .phase-focus { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .phase-items { padding: 16px 22px; }
+  .phase-item {
+    display: flex; gap: 10px; padding: 7px 0;
+    font-size: 13px; color: var(--muted);
+    border-bottom: 1px solid rgba(30,58,95,0.4);
+    align-items: flex-start;
+  }
+  .phase-item:last-child { border-bottom: none; }
+  .phase-check { font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+  .phase-milestone {
+    margin: 0 22px 16px; padding: 10px 14px;
+    border-radius: 6px; font-size: 12px;
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--ff-mono);
+  }
+
+  /* ─── TECH STACK ─── */
+  .techstack-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  .ts-block {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+  }
+  .ts-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .ts-dot { width: 8px; height: 8px; border-radius: 2px; }
+  .ts-title { font-size: 14px; font-weight: 700; color: #fff; }
+  .ts-body { padding: 16px 20px; }
+  .ts-row {
+    display: grid; grid-template-columns: 120px 1fr;
+    gap: 12px; padding: 8px 0;
+    border-bottom: 1px solid rgba(30,58,95,0.4);
+    align-items: center;
+  }
+  .ts-row:last-child { border-bottom: none; }
+  .ts-key { font-size: 11px; font-weight: 700; color: var(--text); font-family: var(--ff-mono); }
+  .ts-val { font-size: 12px; color: var(--muted); }
+
+  /* ─── PRINCIPLES ─── */
+  .principles-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .principle-card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 28px 22px;
+    text-align: center; transition: all 0.3s;
+    position: relative; overflow: hidden;
+  }
+  .principle-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    transition: opacity 0.3s;
+  }
+  .pc1::before { background: linear-gradient(90deg, var(--blue), var(--cyan)); }
+  .pc2::before { background: linear-gradient(90deg, var(--purple), #A78BFA); }
+  .pc3::before { background: linear-gradient(90deg, var(--red), var(--orange)); }
+  .pc4::before { background: linear-gradient(90deg, var(--green), var(--teal)); }
+  .principle-card:hover { transform: translateY(-4px); border-color: var(--border2); box-shadow: 0 16px 40px rgba(0,0,0,0.4); }
+  .p-icon { font-size: 32px; margin-bottom: 16px; }
+  .p-title { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .p-desc { font-size: 12px; color: var(--muted); line-height: 1.7; }
+
+  /* ─── FOOTER ─── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 30px 40px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; color: var(--dim);
+    font-family: var(--ff-mono);
+    max-width: 1300px; margin: 0 auto;
+  }
+
+  /* ─── DIVIDER ─── */
+  .full-divider {
+    border: none; border-top: 1px solid var(--border);
+    margin: 0 40px;
+    opacity: 0.5;
+  }
+
+  /* ─── ANIMATIONS ─── */
+  .fade-up {
+    opacity: 0; transform: translateY(24px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .fade-up.visible {
+    opacity: 1; transform: translateY(0);
+  }
+
+  /* ─── RESPONSIVE — iOS / WeChat / Mobile ─── */
+
+  /* Tablet: 600–900px */
+  @media (max-width: 900px) {
+    .platforms-grid, .roadmap-cards { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+    .infra-grid { grid-template-columns: repeat(3, 1fr); }
+    .security-grid { grid-template-columns: repeat(3, 1fr); }
+    .principles-grid { grid-template-columns: repeat(2, 1fr); }
+    .techstack-grid { grid-template-columns: 1fr; }
+    .layer-body { flex-direction: column; gap: 8px; }
+    .layer-chips { justify-content: flex-start; }
+    nav { padding: 0 20px; }
+    section { padding: 60px 20px; }
+    .hero { padding: 80px 20px 50px; }
+    .hero-stats { gap: 28px; }
+  }
+
+  /* Mobile: ≤600px — iPhone / WeChat */
+  @media (max-width: 600px) {
+    /* Nav: hide text links, show hamburger-style abbreviated labels */
+    nav { padding: 0 16px; height: 50px; }
+    .nav-logo { font-size: 10px; letter-spacing: 1px; }
+    .nav-links { gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .nav-links a { font-size: 10px; padding: 5px 8px; white-space: nowrap; }
+
+    /* Hero */
+    .hero { padding: 70px 16px 40px; }
+    .hero-tag { font-size: 9px; padding: 5px 14px; letter-spacing: 1.5px; margin-bottom: 20px; }
+    .hero h1 { font-size: 32px; margin-bottom: 10px; }
+    .hero h2 { font-size: 14px; margin-bottom: 24px; }
+    .hero-stats { gap: 16px; flex-wrap: wrap; justify-content: center; margin-bottom: 28px; }
+    .hero-stat .num { font-size: 28px; }
+    .hero-stat .label { font-size: 10px; }
+    .hero-badges { gap: 6px; }
+    .badge { font-size: 10px; padding: 4px 10px; }
+
+    /* Section headers */
+    section { padding: 48px 16px; }
+    .section-header { margin-bottom: 28px; gap: 10px; }
+    .section-title { font-size: 20px; }
+    .section-num { font-size: 10px; }
+    .section-line { display: none; }
+    .full-divider { margin: 0 16px; }
+
+    /* Arch layers */
+    .arch-layer { grid-template-columns: 60px 1fr; }
+    .layer-tag { padding: 12px 4px; }
+    .layer-num { font-size: 14px; }
+    .layer-name { font-size: 8px; }
+    .layer-body { padding: 12px 14px; gap: 6px; }
+    .layer-title { font-size: 13px; min-width: unset; }
+    .layer-desc { font-size: 11px; line-height: 1.5; }
+    .layer-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .chip { font-size: 9px; padding: 2px 6px; }
+
+    /* Platform cards */
+    .platforms-grid { gap: 14px; }
+    .platform-header { padding: 18px 16px 14px; }
+    .platform-title { font-size: 16px; }
+    .platform-sub { font-size: 10px; }
+    .platform-features { padding: 14px 16px; }
+    .feature-item { font-size: 12px; padding: 6px 0; }
+    .platform-footer { font-size: 10px; padding: 12px 16px; }
+
+    /* Data + AI blocks */
+    .component-block { border-radius: 8px; }
+    .block-header { padding: 12px 14px; }
+    .block-title { font-size: 13px; }
+    .block-sub { font-size: 10px; }
+    .block-body { padding: 12px 14px; }
+    .tech-row { flex-wrap: wrap; gap: 6px; padding: 7px 0; }
+    .tech-label { font-size: 11px; min-width: 65px; }
+    .tech-tags { flex-wrap: wrap; }
+    .t-tag { font-size: 9px; padding: 2px 6px; }
+
+    /* Infra & security grids */
+    .infra-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .security-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .infra-card { padding: 12px 10px; }
+    .infra-icon { font-size: 20px; margin-bottom: 6px; }
+    .infra-title { font-size: 11px; }
+    .infra-items { font-size: 9px; line-height: 1.7; }
+    .sec-card { padding: 12px 10px; }
+    .sec-title { font-size: 11px; margin-bottom: 6px; }
+    .sec-items { font-size: 9px; line-height: 1.8; }
+
+    /* Roadmap */
+    .roadmap-cards { gap: 14px; }
+    .phase-header { padding: 16px 16px 14px; }
+    .phase-title { font-size: 16px; }
+    .phase-period { font-size: 11px; }
+    .phase-tag { font-size: 9px; }
+    .phase-items { padding: 12px 16px; }
+    .phase-item { font-size: 12px; padding: 6px 0; }
+    .phase-milestone { margin: 0 16px 14px; font-size: 11px; padding: 8px 12px; }
+
+    /* Tech stack */
+    .techstack-grid { gap: 14px; }
+    .ts-header { padding: 12px 16px; }
+    .ts-title { font-size: 13px; }
+    .ts-body { padding: 12px 16px; }
+    .ts-row { grid-template-columns: 90px 1fr; gap: 8px; padding: 7px 0; }
+    .ts-key { font-size: 10px; }
+    .ts-val { font-size: 11px; }
+
+    /* Principles */
+    .principles-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .principle-card { padding: 20px 14px; }
+    .p-icon { font-size: 26px; margin-bottom: 10px; }
+    .p-title { font-size: 14px; }
+    .p-desc { font-size: 11px; }
+
+    /* LLM topology diagram — restack vertically */
+    .topo-row-3cols { flex-direction: column !important; gap: 8px !important; }
+
+    /* Footer */
+    footer { flex-direction: column; gap: 6px; text-align: center; padding: 20px 16px; font-size: 10px; }
+  }
+
+  /* Extra small: ≤375px — iPhone SE / mini */
+  @media (max-width: 375px) {
+    .hero h1 { font-size: 26px; }
+    .hero h2 { font-size: 13px; }
+    .infra-grid, .security-grid { grid-template-columns: 1fr 1fr; }
+    .principles-grid { grid-template-columns: 1fr; }
+    .arch-layer { grid-template-columns: 52px 1fr; }
+    .hero-stats { gap: 12px; }
+  }
+
+  /* iOS Safari safe area (notch / home indicator) */
+  @supports (padding: env(safe-area-inset-bottom)) {
+    nav {
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
+    }
+    footer {
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+    .hero {
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
+    }
+    section {
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
+    }
+  }
+
+  /* iOS: prevent text size inflation on rotation */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+  /* iOS: smoother scrolling */
+  body { -webkit-overflow-scrolling: touch; }
+
+  /* WeChat browser: force correct box model */
+  * { -webkit-box-sizing: border-box; box-sizing: border-box; }
+
+  /* iOS: tap highlight removal */
+  a, button { -webkit-tap-highlight-color: transparent; }
+
+  /* Prevent horizontal overflow on all mobile */
+  @media (max-width: 600px) {
+    body { overflow-x: hidden; }
+    section, .hero { max-width: 100vw; }
+    /* Tables / inline-flex rows that can overflow */
+    .tech-tags, .layer-chips, .hero-badges { overflow-x: visible; flex-wrap: wrap; }
+    /* Topology diagram inner divs: allow stacking */
+    [style*="display:flex"][style*="gap"] { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">Enterprise AI OS</div>
+  <ul class="nav-links">
+    <li><a href="#architecture">架构</a></li>
+    <li><a href="#platforms">平台</a></li>
+    <li><a href="#data-ai">数据&AI</a></li>
+    <li><a href="#infra">基础设施</a></li>
+    <li><a href="#roadmap">路线图</a></li>
+    <li><a href="#techstack">技术栈</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-tag">Enterprise AI Architecture · 2026</div>
+  <h1>企业<span>智能</span>操作系统</h1>
+  <h2>架构设计方案 — 飞书协同 · 运营管理 · 技术开发</h2>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <span class="num">8</span>
+      <div class="label">架构层级</div>
+    </div>
+    <div class="hero-stat">
+      <span class="num">3</span>
+      <div class="label">智能化平台</div>
+    </div>
+    <div class="hero-stat">
+      <span class="num">3</span>
+      <div class="label">建设阶段</div>
+    </div>
+    <div class="hero-stat">
+      <span class="num">24<span style="font-size:18px">月</span></span>
+      <div class="label">完整周期</div>
+    </div>
+  </div>
+  <div class="hero-badges">
+    <span class="badge badge-green">✓ 飞书企业AI 已上线</span>
+    <span class="badge badge-blue">◎ 数据治理 进行中</span>
+    <span class="badge badge-teal">◎ 数据平台 建设中</span>
+    <span class="badge badge-purple">○ 运营管理平台 规划中</span>
+    <span class="badge badge-gold">○ 技术开发平台 规划中</span>
+  </div>
+</div>
+
+<hr class="full-divider">
+
+<!-- ARCHITECTURE OVERVIEW -->
+<section id="architecture">
+  <div class="section-header fade-up">
+    <span class="section-num">01</span>
+    <h2 class="section-title">总体架构 — <span>8层体系</span></h2>
+    <div class="section-line"></div>
+  </div>
+  <div class="arch-layers fade-up">
+    <div class="arch-layer l7">
+      <div class="layer-tag"><span class="layer-num">L7</span><span class="layer-name">应用层</span></div>
+      <div class="layer-body">
+        <div class="layer-title">应用智能层</div>
+        <div class="layer-desc">飞书办公协同 · 运营管理平台 · 技术开发平台 — 三大智能化场景直接面向用户</div>
+        <div class="layer-chips">
+          <span class="chip">飞书Lark</span><span class="chip">运营BI</span><span class="chip">AI Copilot</span><span class="chip">DSS决策支持</span>
+        </div>
+      </div>
+    </div>
+    <div class="arch-layer l6">
+      <div class="layer-tag"><span class="layer-num">L6</span><span class="layer-name">AI层</span></div>
+      <div class="layer-body">
+        <div class="layer-title">AI能力层</div>
+        <div class="layer-desc">统一LLM服务网关 · Agent编排框架 · RAG检索增强 · 向量检索 · 提示工程中台</div>
+        <div class="layer-chips">
+          <span class="chip">LLM Gateway</span><span class="chip">LangGraph</span><span class="chip">RAG</span><span class="chip">Milvus</span><span class="chip">Embedding</span>
+        </div>
+      </div>
+    </div>
+    <div class="arch-layer l5b">
+      <div class="layer-tag"><span class="layer-num">L5b</span><span class="layer-name">语义层</span></div>
+      <div class="layer-body">
+        <div class="layer-title">业务语义层</div>
+        <div class="layer-desc">本体建模 (Ontology) · 业务对象与关系图谱 · 语义API · AI上下文注入 · 工业知识图谱</div>
+        <div class="layer-chips">
+          <span class="chip">Ontology Objects</span><span class="chip">Knowledge Graph</span><span class="chip">GraphQL API</span><span class="chip">dbt语义</span><span class="chip">Neo4j</span>
+        </div>
+      </div>
+    </div>
+    <div class="arch-layer l5">
+      <div class="layer-tag"><span class="layer-num">L5a</span><span class="layer-name">数智层</span></div>
+      <div class="layer-body">
+        <div class="layer-title">数据智能层</div>
+        <div class="layer-desc">数据资产目录 · 特征工程平台 · 标签体系 · 数据质量监控 · AI训练数据管理</div>
+        <div class="layer-chips">
+          <span class="chip">DataHub</span><span class="chip">Feast特征</span><span class="chip">标签平台</span><span class="chip">Great Expectations</span>
+        </div>
+      </div>
+    </div>
+    <div class="arch-layer l4">
+      <div class="layer-tag"><span class="layer-num">L4</span><span class="layer-name">数据层</span></div>
+      <div class="layer-body">
+        <div class="layer-title">数据平台层</div>
+        <div class="layer-desc">数据采集接入 · 多模态存储 · 实时/批量计算 · 数据治理 · 数据服务化输出</div>
+        <div class="layer-chips">
+          <span class="chip">Kafka/Flink</span><span class="chip">ClickHouse</span><span class="chip">数据湖</span><span class="chip">Airflow</span><span class="chip">MDM</span>
+        </div>
+      </div>
+    </div>
+    <div class="arch-layer l3">
+      <div class="layer-tag"><span class="layer-num">L3</span><span class="layer-name">基础层</span></div>
+      <div class="layer-body">
+        <div class="layer-title">基础设施层</div>
+        <div class="layer-desc">云原生K8s编排 · GPU算力集群 · 向量数据库 · 消息队列 · 全链路可观测性</div>
+        <div class="layer-chips">
+          <span class="chip">Kubernetes</span><span class="chip">GPU集群</span><span class="chip">Prometheus</span><span class="chip">ELK</span>
+        </div>
+      </div>
+    </div>
+    <div class="arch-layer l2">
+      <div class="layer-tag"><span class="layer-num">L2</span><span class="layer-name">安全层</span></div>
+      <div class="layer-body">
+        <div class="layer-title">安全合规层</div>
+        <div class="layer-desc">零信任身份认证 · RBAC权限管控 · 数据加密脱敏 · AI内容安全 · 全链路审计</div>
+        <div class="layer-chips">
+          <span class="chip">SSO/OAuth2</span><span class="chip">RBAC</span><span class="chip">DLP</span><span class="chip">Prompt防护</span><span class="chip">等保三级</span>
+        </div>
+      </div>
+    </div>
+    <div class="arch-layer l1">
+      <div class="layer-tag"><span class="layer-num">L1</span><span class="layer-name">接入层</span></div>
+      <div class="layer-body">
+        <div class="layer-title">接入集成层</div>
+        <div class="layer-desc">API网关统一入口 · 飞书OpenAPI集成 · ERP/CRM对接 · 多数据源接入 · 消息推送</div>
+        <div class="layer-chips">
+          <span class="chip">Kong/APISIX</span><span class="chip">飞书OpenAPI</span><span class="chip">CDC</span><span class="chip">Webhook</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="full-divider">
+
+<!-- PLATFORMS -->
+<section id="platforms">
+  <div class="section-header fade-up">
+    <span class="section-num">02</span>
+    <h2 class="section-title">三大<span>智能化平台</span> — L7 应用层</h2>
+    <div class="section-line"></div>
+  </div>
+  <div class="platforms-grid fade-up">
+    <!-- Platform 1 -->
+    <div class="platform-card p1">
+      <div class="platform-header">
+        <div class="platform-title">办公协同智能化平台</div>
+        <div class="platform-sub">FEISHU / LARK · 已上线</div>
+        <span class="status-tag online">已上线运行</span>
+      </div>
+      <div class="platform-features">
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(27,111,232,0.15);color:#60A5FA">AI</div>
+          <span>飞书企业AI平台 · 多维表格 · 知识库智能问答</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(0,200,255,0.12);color:var(--cyan)">🤖</div>
+          <span>AI助手：飞书 Aily / 自定义企业智能体</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(0,200,255,0.12);color:var(--cyan)">⚙️</div>
+          <span>工作流自动化 (Workflow) · 无代码流程</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(0,200,255,0.12);color:var(--cyan)">📄</div>
+          <span>文档智能：摘要 · 翻译 · 校对 · 格式化</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(0,200,255,0.12);color:var(--cyan)">🎙️</div>
+          <span>会议AI：纪要生成 · 转写 · 行动项提取</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(0,200,255,0.12);color:var(--cyan)">📋</div>
+          <span>审批 · OA · HR 全流程数字化</span>
+        </div>
+      </div>
+      <div class="platform-footer">技术栈：飞书OpenAPI · Webhook · 飞书插件生态 · LLM集成</div>
+    </div>
+    <!-- Platform 2 -->
+    <div class="platform-card p2">
+      <div class="platform-header">
+        <div class="platform-title">运营管理智能化平台</div>
+        <div class="platform-sub">CUSTOM BUILD · 自建 · 智能制造场景</div>
+        <span class="status-tag building">建设中</span>
+      </div>
+      <div class="platform-features">
+        <!-- Sub-label: R&D -->
+        <div style="font-size:10px;font-family:var(--ff-mono);color:var(--teal);padding:8px 0 2px;letter-spacing:1px;border-bottom:1px solid rgba(0,212,180,0.15)">▸ 产品研发 &amp; 工艺研发</div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(0,212,180,0.12);color:var(--teal)">🔬</div>
+          <span>AI辅助产品设计 · 需求分析 · 生成式设计 (GenD)</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(0,212,180,0.12);color:var(--teal)">⚙️</div>
+          <span>工艺参数优化 · AI工艺知识库 · 工艺推荐引擎</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(0,212,180,0.12);color:var(--teal)">🧪</div>
+          <span>实验设计智能化 (DOE-AI) · 仿真数据分析</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(0,212,180,0.12);color:var(--teal)">📐</div>
+          <span>研发知识沉淀 · BOM/图纸AI解析 · 标准规范检索</span>
+        </div>
+        <!-- Sub-label: Manufacturing -->
+        <div style="font-size:10px;font-family:var(--ff-mono);color:#22D3EE;padding:8px 0 2px;letter-spacing:1px;border-bottom:1px solid rgba(34,211,238,0.15)">▸ 智能制造 &amp; 生产运营</div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(34,211,238,0.1);color:#22D3EE">🏭</div>
+          <span>设备预测性维护 (PdM) · 故障根因分析 · PHM</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(34,211,238,0.1);color:#22D3EE">👁️</div>
+          <span>视觉质检AI · 缺陷检测 · 在线质量监控</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(34,211,238,0.1);color:#22D3EE">📊</div>
+          <span>生产排程优化 (APS-AI) · OEE智能分析</span>
+        </div>
+        <!-- Sub-label: Business Ops -->
+        <div style="font-size:10px;font-family:var(--ff-mono);color:#6EE7B7;padding:8px 0 2px;letter-spacing:1px;border-bottom:1px solid rgba(110,231,183,0.15)">▸ 经营管理</div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(16,185,129,0.1);color:var(--green)">📈</div>
+          <span>业务BI驾驶舱 · 运营KPI预测 · 异常预警</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(16,185,129,0.1);color:var(--green)">🔗</div>
+          <span>供应链 / 客户 / 财务 AI分析 · NL2SQL数据查询</span>
+        </div>
+      </div>
+      <div class="platform-footer">技术栈：React前端 · Python后端 · LLM API · 数据平台 · MES/PLM/ERP集成</div>
+    </div>
+    <!-- Platform 3 -->
+    <div class="platform-card p3">
+      <div class="platform-header">
+        <div class="platform-title">技术开发智能化平台</div>
+        <div class="platform-sub">DEVTOOLS + LLM SERVICE</div>
+        <span class="status-tag planning">规划中</span>
+      </div>
+      <div class="platform-features">
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(124,58,237,0.15);color:#A78BFA">💻</div>
+          <span>AI代码助手：Copilot / Cursor 企业版集成</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(124,58,237,0.15);color:#A78BFA">🔎</div>
+          <span>智能Code Review · 安全漏洞扫描 · 质量门禁</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(124,58,237,0.15);color:#A78BFA">🧪</div>
+          <span>测试用例自动生成 · E2E测试脚本自动化</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(124,58,237,0.15);color:#A78BFA">📝</div>
+          <span>技术文档自动生成 · API文档同步更新</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(124,58,237,0.15);color:#A78BFA">🏗️</div>
+          <span>架构评审AI辅助 · 技术债务分析</span>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(124,58,237,0.15);color:#A78BFA">🌐</div>
+          <span>内部LLM服务网关 · 统一API调用管理</span>
+        </div>
+      </div>
+      <div class="platform-footer">技术栈：VS Code插件 · IDE集成 · LLM服务 · GitLab CI/CD</div>
+    </div>
+  </div>
+</section>
+
+<hr class="full-divider">
+
+<!-- DATA + AI -->
+<section id="data-ai">
+  <div class="section-header fade-up">
+    <span class="section-num">03</span>
+    <h2 class="section-title">数据治理 · <span>语义建模</span> · AI能力层 — L4/L5/L6</h2>
+    <div class="section-line"></div>
+  </div>
+  <div class="two-col fade-up">
+    <!-- Data Platform -->
+    <div>
+      <div style="font-size:12px;font-family:var(--ff-mono);color:var(--muted);margin-bottom:12px;letter-spacing:1px">L4 数据平台层 + L5a 数据智能层 + L5b 业务语义层</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="component-block">
+          <div class="block-header">
+            <div class="block-dot" style="background:#0891B2"></div>
+            <div class="block-title">数据采集层</div>
+            <div class="block-sub">Ingestion</div>
+          </div>
+          <div class="block-body">
+            <div class="tech-row"><span class="tech-label">实时流</span><div class="tech-tags"><span class="t-tag tc">Apache Kafka</span><span class="t-tag tc">Apache Flink</span></div></div>
+            <div class="tech-row"><span class="tech-label">批量同步</span><div class="tech-tags"><span class="t-tag tb">DataX</span><span class="t-tag tb">SeaTunnel</span></div></div>
+            <div class="tech-row"><span class="tech-label">CDC变更</span><div class="tech-tags"><span class="t-tag tg">Debezium</span><span class="t-tag tg">Canal</span></div></div>
+          </div>
+        </div>
+        <div class="component-block">
+          <div class="block-header">
+            <div class="block-dot" style="background:#0D9488"></div>
+            <div class="block-title">数据存储层</div>
+            <div class="block-sub">Storage</div>
+          </div>
+          <div class="block-body">
+            <div class="tech-row"><span class="tech-label">数据湖</span><div class="tech-tags"><span class="t-tag tc">Apache Iceberg</span><span class="t-tag tc">MinIO/OSS</span></div></div>
+            <div class="tech-row"><span class="tech-label">OLAP数仓</span><div class="tech-tags"><span class="t-tag tb">ClickHouse</span><span class="t-tag tb">Doris</span></div></div>
+            <div class="tech-row"><span class="tech-label">向量库</span><div class="tech-tags"><span class="t-tag tp">Milvus</span><span class="t-tag tp">PGVector</span></div></div>
+            <div class="tech-row"><span class="tech-label">图数据库</span><div class="tech-tags"><span class="t-tag to">Neo4j</span></div></div>
+          </div>
+        </div>
+        <div class="component-block">
+          <div class="block-header">
+            <div class="block-dot" style="background:#059669"></div>
+            <div class="block-title">数据治理层</div>
+            <div class="block-sub">Governance</div>
+          </div>
+          <div class="block-body">
+            <div class="tech-row"><span class="tech-label">元数据</span><div class="tech-tags"><span class="t-tag tg">DataHub</span><span class="t-tag tg">Apache Atlas</span></div></div>
+            <div class="tech-row"><span class="tech-label">数据质量</span><div class="tech-tags"><span class="t-tag tb">Great Expectations</span><span class="t-tag tb">Deequ</span></div></div>
+            <div class="tech-row"><span class="tech-label">血缘追踪</span><div class="tech-tags"><span class="t-tag tc">OpenLineage</span><span class="t-tag tc">Marquez</span></div></div>
+            <div class="tech-row"><span class="tech-label">主数据MDM</span><div class="tech-tags"><span class="t-tag to">自建MDM</span></div></div>
+          </div>
+        </div>
+        <!-- SEMANTIC ONTOLOGY BLOCK — L5b -->
+        <div class="component-block" style="border-color:rgba(251,191,36,0.3)">
+          <div class="block-header" style="background:rgba(251,191,36,0.06)">
+            <div class="block-dot" style="background:#FBBF24"></div>
+            <div class="block-title">业务语义层 (Ontology) <span style="font-size:10px;color:#FBBF24;font-family:var(--ff-mono);margin-left:6px">L5b · 对标Palantir</span></div>
+            <div class="block-sub">Semantic Modeling</div>
+          </div>
+          <div class="block-body">
+            <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono);padding:2px 0 8px;line-height:1.7">将原始数据表映射为<strong style="color:var(--text)">业务对象+关系</strong>，让AI理解"设备→工单→工艺路线"而非裸表字段</div>
+            <div class="tech-row">
+              <span class="tech-label">对象建模</span>
+              <div class="tech-tags">
+                <span class="t-tag" style="background:rgba(251,191,36,0.1);color:#FBBF24">业务对象定义</span>
+                <span class="t-tag" style="background:rgba(251,191,36,0.1);color:#FBBF24">属性/关系建模</span>
+              </div>
+            </div>
+            <div class="tech-row">
+              <span class="tech-label">知识图谱</span>
+              <div class="tech-tags">
+                <span class="t-tag tg">Neo4j</span>
+                <span class="t-tag tg">工业知识图谱</span>
+                <span class="t-tag tg">GraphRAG</span>
+              </div>
+            </div>
+            <div class="tech-row">
+              <span class="tech-label">语义转换</span>
+              <div class="tech-tags">
+                <span class="t-tag tb">dbt语义层</span>
+                <span class="t-tag tb">Cube.dev</span>
+                <span class="t-tag tb">业务规则引擎</span>
+              </div>
+            </div>
+            <div class="tech-row">
+              <span class="tech-label">语义API</span>
+              <div class="tech-tags">
+                <span class="t-tag tc">GraphQL API</span>
+                <span class="t-tag tc">对象查询接口</span>
+              </div>
+            </div>
+            <div class="tech-row">
+              <span class="tech-label">AI上下文</span>
+              <div class="tech-tags">
+                <span class="t-tag tp">Ontology→RAG注入</span>
+                <span class="t-tag tp">Agent工具调用</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="component-block">
+          <div class="block-header">
+            <div class="block-dot" style="background:#0369A1"></div>
+            <div class="block-title">数据服务与调度</div>
+            <div class="block-sub">Service + Orchestration</div>
+          </div>
+          <div class="block-body">
+            <div class="tech-row"><span class="tech-label">任务调度</span><div class="tech-tags"><span class="t-tag tc">Airflow</span><span class="t-tag tc">DolphinScheduler</span></div></div>
+            <div class="tech-row"><span class="tech-label">特征平台</span><div class="tech-tags"><span class="t-tag tg">Feast</span></div></div>
+            <div class="tech-row"><span class="tech-label">数据API</span><div class="tech-tags"><span class="t-tag tb">统一Data API</span><span class="t-tag tb">数据集市</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- AI Layer -->
+    <div>
+      <div style="font-size:12px;font-family:var(--ff-mono);color:var(--muted);margin-bottom:12px;letter-spacing:1px">L6 AI能力层</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="component-block" style="border-color:rgba(0,200,255,0.25)">
+          <div class="block-header" style="background:rgba(0,200,255,0.05)">
+            <div class="block-dot" style="background:var(--cyan)"></div>
+            <div class="block-title">企业 LLM Gateway <span style="font-size:10px;color:var(--cyan);font-family:var(--ff-mono);margin-left:6px">数据不出企业</span></div>
+            <div class="block-sub">统一入口 · 自控路由</div>
+          </div>
+          <div class="block-body">
+            <div style="font-size:10px;color:var(--muted);font-family:var(--ff-mono);padding:4px 0 8px;letter-spacing:0.5px">企业侧自建 Gateway 层，所有 LLM 调用经此路由，原始数据不流出</div>
+            <div class="tech-row"><span class="tech-label">托管模型</span><div class="tech-tags"><span class="t-tag tc">AWS Bedrock Claude</span><span class="t-tag tc">Azure OpenAI GPT</span></div></div>
+            <div class="tech-row"><span class="tech-label">私有部署</span><div class="tech-tags"><span class="t-tag tp">Qwen2.5</span><span class="t-tag tp">DeepSeek-V3</span><span class="t-tag tp">高保密场景</span></div></div>
+            <div class="tech-row"><span class="tech-label">路由策略</span><div class="tech-tags"><span class="t-tag tg">数据分级路由</span><span class="t-tag tg">成本优先</span><span class="t-tag tg">延迟优先</span></div></div>
+            <div class="tech-row"><span class="tech-label">安全处理</span><div class="tech-tags"><span class="t-tag to">数据脱敏</span><span class="t-tag to">Prompt过滤</span><span class="t-tag to">输出审计</span></div></div>
+            <div class="tech-row"><span class="tech-label">管控</span><div class="tech-tags"><span class="t-tag tb">Token计费</span><span class="t-tag tb">调用审计</span><span class="t-tag tb">熔断降级</span></div></div>
+          </div>
+        </div>
+        <div class="component-block">
+          <div class="block-header">
+            <div class="block-dot" style="background:var(--cyan)"></div>
+            <div class="block-title">Agent & RAG 框架</div>
+            <div class="block-sub">智能编排</div>
+          </div>
+          <div class="block-body">
+            <div class="tech-row"><span class="tech-label">Agent框架</span><div class="tech-tags"><span class="t-tag tc">LangGraph</span><span class="t-tag tc">AutoGen</span><span class="t-tag tc">CrewAI</span></div></div>
+            <div class="tech-row"><span class="tech-label">RAG框架</span><div class="tech-tags"><span class="t-tag tb">LlamaIndex</span><span class="t-tag tb">LangChain</span></div></div>
+            <div class="tech-row"><span class="tech-label">检索策略</span><div class="tech-tags"><span class="t-tag tg">混合检索</span><span class="t-tag tg">BM25+向量</span><span class="t-tag tg">重排序</span></div></div>
+          </div>
+        </div>
+        <div class="component-block">
+          <div class="block-header">
+            <div class="block-dot" style="background:var(--teal)"></div>
+            <div class="block-title">向量检索 & Embedding</div>
+            <div class="block-sub">语义基础设施</div>
+          </div>
+          <div class="block-body">
+            <div class="tech-row"><span class="tech-label">向量数据库</span><div class="tech-tags"><span class="t-tag tc">Milvus</span><span class="t-tag tc">Qdrant</span></div></div>
+            <div class="tech-row"><span class="tech-label">Embedding模型</span><div class="tech-tags"><span class="t-tag tg">BGE-M3</span><span class="t-tag tg">text-embedding-3</span></div></div>
+            <div class="tech-row"><span class="tech-label">知识图谱</span><div class="tech-tags"><span class="t-tag tp">Neo4j</span><span class="t-tag tp">GraphRAG</span></div></div>
+          </div>
+        </div>
+        <div class="component-block">
+          <div class="block-header">
+            <div class="block-dot" style="background:var(--orange)"></div>
+            <div class="block-title">模型训练 & 微调</div>
+            <div class="block-sub">企业专属模型</div>
+          </div>
+          <div class="block-body">
+            <div class="tech-row"><span class="tech-label">微调方式</span><div class="tech-tags"><span class="t-tag to">SFT监督微调</span><span class="t-tag to">LoRA</span><span class="t-tag to">RLHF</span></div></div>
+            <div class="tech-row"><span class="tech-label">实验管理</span><div class="tech-tags"><span class="t-tag tg">MLflow</span><span class="t-tag tg">WandB</span></div></div>
+            <div class="tech-row"><span class="tech-label">数据标注</span><div class="tech-tags"><span class="t-tag tb">Label Studio</span><span class="t-tag tb">标注平台</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="full-divider">
+
+<!-- INFRASTRUCTURE + SECURITY -->
+<section id="infra">
+  <div class="section-header fade-up">
+    <span class="section-num">04</span>
+    <h2 class="section-title">基础设施 & <span>安全合规</span> — L1/L2/L3</h2>
+    <div class="section-line"></div>
+  </div>
+  <!-- L3 Infra -->
+  <div class="fade-up">
+    <div style="font-size:12px;font-family:var(--ff-mono);color:var(--muted);margin-bottom:12px;letter-spacing:1px">L3 — 基础设施层</div>
+    <div class="infra-grid">
+      <div class="infra-card">
+        <div class="infra-icon">☸️</div>
+        <div class="infra-title">云原生计算</div>
+        <div class="infra-items">Kubernetes<br>Helm Chart<br>Istio服务网格<br>Argo Rollouts</div>
+      </div>
+      <div class="infra-card">
+        <div class="infra-icon">⚡</div>
+        <div class="infra-title">GPU算力集群</div>
+        <div class="infra-items">A100/H100节点<br>弹性扩缩容<br>GPU分时调度<br>推理优化</div>
+      </div>
+      <div class="infra-card">
+        <div class="infra-icon">🗄️</div>
+        <div class="infra-title">向量数据库</div>
+        <div class="infra-items">Milvus集群<br>高维语义检索<br>百亿向量规模<br>ANN近似检索</div>
+      </div>
+      <div class="infra-card">
+        <div class="infra-icon">📨</div>
+        <div class="infra-title">消息中间件</div>
+        <div class="infra-items">Apache Kafka<br>RocketMQ<br>事件驱动架构<br>异步解耦</div>
+      </div>
+      <div class="infra-card">
+        <div class="infra-icon">📡</div>
+        <div class="infra-title">监控可观测性</div>
+        <div class="infra-items">Prometheus+Grafana<br>Jaeger链路追踪<br>ELK日志分析<br>AIOps告警</div>
+      </div>
+    </div>
+  </div>
+  <!-- L2 Security -->
+  <div class="fade-up" style="margin-top:28px">
+    <div style="font-size:12px;font-family:var(--ff-mono);color:#A78BFA;margin-bottom:12px;letter-spacing:1px">L2 — 安全合规层</div>
+    <div class="security-grid">
+      <div class="sec-card">
+        <div class="sec-title">🔐 身份认证</div>
+        <div class="sec-items">SSO单点登录<br>OAuth2/OIDC<br>多因素认证MFA<br>飞书身份打通</div>
+      </div>
+      <div class="sec-card">
+        <div class="sec-title">🛡️ 权限管控</div>
+        <div class="sec-items">RBAC角色权限<br>数据行列安全<br>最小权限原则<br>动态权限策略</div>
+      </div>
+      <div class="sec-card">
+        <div class="sec-title">🔒 数据安全</div>
+        <div class="sec-items">传输/存储加密<br>数据脱敏处理<br>防泄漏DLP<br>密钥管理Vault</div>
+      </div>
+      <div class="sec-card">
+        <div class="sec-title">🤖 AI内容安全</div>
+        <div class="sec-items">Prompt注入防护<br>输出内容审核<br>敏感词过滤<br>越狱攻击防御</div>
+      </div>
+      <div class="sec-card">
+        <div class="sec-title">📋 审计合规</div>
+        <div class="sec-items">全链路审计日志<br>操作行为分析<br>等保三级合规<br>GDPR/数据法</div>
+      </div>
+    </div>
+  </div>
+  <!-- L1 Integration -->
+  <div class="fade-up" style="margin-top:28px">
+    <div style="font-size:12px;font-family:var(--ff-mono);color:var(--muted);margin-bottom:12px;letter-spacing:1px">L1 — 接入集成层</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="badge badge-blue" style="font-size:12px;padding:8px 16px">API网关 (Kong/APISIX)</div>
+      <div class="badge badge-teal" style="font-size:12px;padding:8px 16px">飞书OpenAPI集成</div>
+      <div class="badge badge-purple" style="font-size:12px;padding:8px 16px">ERP/CRM系统对接</div>
+      <div class="badge badge-gold" style="font-size:12px;padding:8px 16px">数据库/文件数据源</div>
+      <div class="badge badge-blue" style="font-size:12px;padding:8px 16px">第三方SaaS集成</div>
+      <div class="badge badge-teal" style="font-size:12px;padding:8px 16px">消息推送服务</div>
+    </div>
+  </div>
+</section>
+
+<hr class="full-divider">
+
+<!-- ROADMAP -->
+<section id="roadmap">
+  <div class="section-header fade-up">
+    <span class="section-num">05</span>
+    <h2 class="section-title">实施<span>路线图</span> — 三阶段建设</h2>
+    <div class="section-line"></div>
+  </div>
+  <div class="fade-up">
+    <div class="roadmap-timeline">
+      <div class="tl-segment" style="background:linear-gradient(90deg,var(--teal),#0891B2);flex:1;position:relative">
+        <div class="tl-dot" style="background:var(--teal);left:0;box-shadow:0 0 8px var(--teal)"></div>
+        <span style="position:absolute;top:-22px;left:0;font-size:11px;font-family:var(--ff-mono);color:var(--teal)">0月</span>
+      </div>
+      <div class="tl-segment" style="background:linear-gradient(90deg,#0891B2,var(--blue));flex:1;position:relative">
+        <div class="tl-dot" style="background:var(--blue);left:0;box-shadow:0 0 8px var(--blue)"></div>
+        <span style="position:absolute;top:-22px;left:0;font-size:11px;font-family:var(--ff-mono);color:var(--blue)">6月</span>
+      </div>
+      <div class="tl-segment" style="background:linear-gradient(90deg,var(--blue),var(--purple));flex:1;position:relative">
+        <div class="tl-dot" style="background:var(--purple);left:0;box-shadow:0 0 8px var(--purple)"></div>
+        <span style="position:absolute;top:-22px;left:0;font-size:11px;font-family:var(--ff-mono);color:var(--purple)">12月</span>
+      </div>
+      <div style="position:relative">
+        <div class="tl-dot" style="background:var(--gold);right:-6px;top:-4px;box-shadow:0 0 8px var(--gold)"></div>
+        <span style="position:absolute;top:-22px;right:0;font-size:11px;font-family:var(--ff-mono);color:var(--gold)">24月</span>
+      </div>
+    </div>
+    <div style="margin-top:24px" class="roadmap-cards">
+      <!-- Phase 1 -->
+      <div class="phase-card" style="border-color:rgba(0,212,180,0.3)">
+        <div class="phase-header" style="border-color:rgba(0,212,180,0.2)">
+          <span class="phase-tag" style="color:var(--teal)">PHASE 01 · 0-6个月</span>
+          <div class="phase-title">数据底座建设</div>
+          <div class="phase-period">夯实数据基础，完成治理体系</div>
+          <div class="phase-focus" style="color:var(--teal);font-size:11px;margin-top:8px">当前阶段 — 正在推进 →</div>
+        </div>
+        <div class="phase-items">
+          <div class="phase-item"><span class="phase-check" style="color:var(--teal)">✓</span>数据平台选型与部署 (L3/L4)</div>
+          <div class="phase-item"><span class="phase-check" style="color:var(--teal)">✓</span>数据治理流程与工具链落地</div>
+          <div class="phase-item"><span class="phase-check" style="color:var(--teal)">○</span>元数据管理、血缘追踪建立</div>
+          <div class="phase-item"><span class="phase-check" style="color:var(--teal)">○</span>飞书数据集成与打通</div>
+          <div class="phase-item"><span class="phase-check" style="color:var(--teal)">○</span>基础安全合规体系 (L2) 搭建</div>
+          <div class="phase-item"><span class="phase-check" style="color:var(--teal)">○</span>主数据管理MDM上线</div>
+        </div>
+        <div class="phase-milestone" style="background:rgba(0,212,180,0.1);color:var(--teal);border:1px solid rgba(0,212,180,0.2)">
+          🎯 里程碑：数据平台 MVP 上线
+        </div>
+      </div>
+      <!-- Phase 2 -->
+      <div class="phase-card" style="border-color:rgba(27,111,232,0.3)">
+        <div class="phase-header" style="border-color:rgba(27,111,232,0.2)">
+          <span class="phase-tag" style="color:#60A5FA">PHASE 02 · 6-12个月</span>
+          <div class="phase-title">AI能力构建</div>
+          <div class="phase-period">搭建AI基础设施，赋能三大平台</div>
+        </div>
+        <div class="phase-items">
+          <div class="phase-item"><span class="phase-check" style="color:#60A5FA">○</span>LLM网关与统一服务部署 (L6)</div>
+          <div class="phase-item"><span class="phase-check" style="color:#60A5FA">○</span>RAG知识库构建与向量化</div>
+          <div class="phase-item"><span class="phase-check" style="color:#60A5FA">○</span>飞书AI助手深度集成扩展</div>
+          <div class="phase-item"><span class="phase-check" style="color:#60A5FA">○</span>运营管理平台核心功能开发</div>
+          <div class="phase-item"><span class="phase-check" style="color:#60A5FA">○</span>技术开发平台IDE插件上线</div>
+          <div class="phase-item"><span class="phase-check" style="color:#60A5FA">○</span>Agent框架选型与场景试点</div>
+        </div>
+        <div class="phase-milestone" style="background:rgba(27,111,232,0.1);color:#60A5FA;border:1px solid rgba(27,111,232,0.2)">
+          🎯 里程碑：三平台 Alpha 版本发布
+        </div>
+      </div>
+      <!-- Phase 3 -->
+      <div class="phase-card" style="border-color:rgba(124,58,237,0.3)">
+        <div class="phase-header" style="border-color:rgba(124,58,237,0.2)">
+          <span class="phase-tag" style="color:#A78BFA">PHASE 03 · 12-24个月</span>
+          <div class="phase-title">智能化深化</div>
+          <div class="phase-period">持续优化，走向自主智能</div>
+        </div>
+        <div class="phase-items">
+          <div class="phase-item"><span class="phase-check" style="color:#A78BFA">○</span>企业专属模型微调 (SFT/LoRA)</div>
+          <div class="phase-item"><span class="phase-check" style="color:#A78BFA">○</span>多Agent协作工作流全面上线</div>
+          <div class="phase-item"><span class="phase-check" style="color:#A78BFA">○</span>智能决策支持系统深化</div>
+          <div class="phase-item"><span class="phase-check" style="color:#A78BFA">○</span>跨平台数据联动与智能洞察</div>
+          <div class="phase-item"><span class="phase-check" style="color:#A78BFA">○</span>AI应用开发平台 (PaaS化)</div>
+          <div class="phase-item"><span class="phase-check" style="color:#A78BFA">○</span>智能化效果持续评估与优化</div>
+        </div>
+        <div class="phase-milestone" style="background:rgba(124,58,237,0.1);color:#A78BFA;border:1px solid rgba(124,58,237,0.2)">
+          🎯 里程碑：企业智能OS 正式运营
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="full-divider">
+
+<!-- TECH STACK -->
+<section id="techstack">
+  <div class="section-header fade-up">
+    <span class="section-num">06</span>
+    <h2 class="section-title">关键<span>技术选型</span> & 非功能性要求</h2>
+    <div class="section-line"></div>
+  </div>
+  <div class="techstack-grid fade-up">
+    <div class="ts-block">
+      <div class="ts-header"><div class="ts-dot" style="background:#0891B2"></div><div class="ts-title">数据平台技术栈</div></div>
+      <div class="ts-body">
+        <div class="ts-row"><span class="ts-key">数据湖格式</span><span class="ts-val">Apache Iceberg + MinIO / 阿里云OSS</span></div>
+        <div class="ts-row"><span class="ts-key">实时计算</span><span class="ts-val">Apache Flink + Kafka（流批一体）</span></div>
+        <div class="ts-row"><span class="ts-key">OLAP分析</span><span class="ts-val">ClickHouse / Apache Doris</span></div>
+        <div class="ts-row"><span class="ts-key">数据治理</span><span class="ts-val">Apache Atlas / DataHub (LinkedIn)</span></div>
+        <div class="ts-row"><span class="ts-key">任务调度</span><span class="ts-val">Apache Airflow / DolphinScheduler</span></div>
+        <div class="ts-row"><span class="ts-key">数据质量</span><span class="ts-val">Great Expectations / AWS Deequ</span></div>
+        <div class="ts-row" style="background:rgba(251,191,36,0.04);border-radius:4px"><span class="ts-key" style="color:#FBBF24">语义建模</span><span class="ts-val">dbt语义层 + Cube.dev + Neo4j（Ontology）</span></div>
+      </div>
+    </div>
+    <div class="ts-block">
+      <div class="ts-header"><div class="ts-dot" style="background:var(--purple)"></div><div class="ts-title">AI / LLM 技术栈</div></div>
+      <div class="ts-body">
+        <div class="ts-row"><span class="ts-key">托管模型</span><span class="ts-val">AWS Bedrock Claude 3.x · Azure OpenAI GPT-4o（企业DPA）</span></div>
+        <div class="ts-row"><span class="ts-key">私有模型</span><span class="ts-val">Qwen2.5 / DeepSeek-V3（高保密场景，本地GPU）</span></div>
+        <div class="ts-row"><span class="ts-key">LLM Gateway</span><span class="ts-val">LiteLLM / 自研 Gateway（路由 · 脱敏 · 审计）</span></div>
+        <div class="ts-row"><span class="ts-key">Agent框架</span><span class="ts-val">LangGraph / AutoGen / CrewAI</span></div>
+        <div class="ts-row"><span class="ts-key">向量数据库</span><span class="ts-val">Milvus 2.x / Qdrant / PGVector（本地部署）</span></div>
+        <div class="ts-row"><span class="ts-key">Embedding</span><span class="ts-val">BGE-M3（本地） / text-embedding-3-large（Azure）</span></div>
+      </div>
+    </div>
+    <div class="ts-block">
+      <div class="ts-header"><div class="ts-dot" style="background:var(--blue)"></div><div class="ts-title">基础设施技术栈</div></div>
+      <div class="ts-body">
+        <div class="ts-row"><span class="ts-key">容器编排</span><span class="ts-val">Kubernetes (K8s) + Helm + Kustomize</span></div>
+        <div class="ts-row"><span class="ts-key">服务网格</span><span class="ts-val">Istio / Linkerd (mTLS + 流量管理)</span></div>
+        <div class="ts-row"><span class="ts-key">API网关</span><span class="ts-val">Kong Gateway / Apache APISIX</span></div>
+        <div class="ts-row"><span class="ts-key">监控告警</span><span class="ts-val">Prometheus + Grafana + AlertManager</span></div>
+        <div class="ts-row"><span class="ts-key">CI/CD</span><span class="ts-val">GitLab CI + ArgoCD (GitOps)</span></div>
+        <div class="ts-row"><span class="ts-key">密钥管理</span><span class="ts-val">HashiCorp Vault / 云KMS</span></div>
+      </div>
+    </div>
+    <div class="ts-block">
+      <div class="ts-header"><div class="ts-dot" style="background:var(--orange)"></div><div class="ts-title">非功能性技术要求</div></div>
+      <div class="ts-body">
+        <div class="ts-row"><span class="ts-key">可用性</span><span class="ts-val">SLA ≥ 99.9%，多活容灾，RPO ≤ 1h</span></div>
+        <div class="ts-row"><span class="ts-key">AI推理性能</span><span class="ts-val">LLM推理 P95 &lt; 5s，流式输出首Token &lt; 1s</span></div>
+        <div class="ts-row"><span class="ts-key">扩展性</span><span class="ts-val">水平扩展架构，AI算力弹性伸缩</span></div>
+        <div class="ts-row"><span class="ts-key">安全等级</span><span class="ts-val">零信任架构，等保三级，数据分级管控</span></div>
+        <div class="ts-row"><span class="ts-key">可观测性</span><span class="ts-val">全链路追踪，AI调用监控，成本看板</span></div>
+        <div class="ts-row"><span class="ts-key">成本控制</span><span class="ts-val">Token用量监控，GPU利用率 ≥ 70%</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="full-divider">
+
+<!-- PRINCIPLES -->
+<section>
+  <div class="section-header fade-up">
+    <span class="section-num">07</span>
+    <h2 class="section-title">架构<span>核心原则</span></h2>
+    <div class="section-line"></div>
+  </div>
+  <div class="principles-grid fade-up">
+    <div class="principle-card pc1">
+      <div class="p-icon">📊</div>
+      <div class="p-title">数据先行</div>
+      <div class="p-desc">数据底座是AI能力的根基。统一数据平台、打破孤岛，数据质量决定AI上限。</div>
+    </div>
+    <div class="principle-card pc2">
+      <div class="p-icon">🤖</div>
+      <div class="p-title">AI驱动</div>
+      <div class="p-desc">LLM能力通过统一网关下沉为平台服务，三大平台均以AI为核心能力而非附加功能。</div>
+    </div>
+    <div class="principle-card pc3">
+      <div class="p-icon">🔐</div>
+      <div class="p-title">安全合规</div>
+      <div class="p-desc">零信任安全架构贯穿全栈。AI内容安全与数据隐私保护从设计阶段内建，而非后补。</div>
+    </div>
+    <div class="principle-card pc4">
+      <div class="p-icon">🚀</div>
+      <div class="p-title">持续演进</div>
+      <div class="p-desc">模块化、松耦合设计。平滑升级，小步迭代。建议成立AI架构委员会统一标准。</div>
+    </div>
+  </div>
+  <!-- Summary note -->
+  <div style="margin-top:32px;padding:24px 28px;background:var(--panel);border:1px solid var(--border);border-radius:12px;border-left:3px solid var(--cyan);" class="fade-up">
+    <div style="font-size:13px;font-weight:700;color:var(--cyan);margin-bottom:10px;font-family:var(--ff-mono)">架构师建议</div>
+    <div style="font-size:13px;color:var(--muted);line-height:1.9">
+      当前<strong style="color:var(--text)">数据治理项目的工程化部分</strong>（数据平台搭建）直接对应 <strong style="color:var(--cyan)">L3 + L4</strong> 的基础建设；管理咨询输出的数据标准与质量规范落地为 <strong style="color:var(--teal)">L5</strong> 的治理体系。两条线投入将直接转化为 <strong style="color:var(--purple)">L6 AI能力层</strong>可复用的高质量数据资产。
+    </div>
+  </div>
+
+  <!-- Data Sovereignty + LLM Topology -->
+  <div style="margin-top:20px" class="fade-up">
+    <div style="font-size:12px;font-family:var(--ff-mono);color:var(--muted);margin-bottom:16px;letter-spacing:1px">数据主权架构 — 飞书前端 × 企业LLM Gateway × 本地数据平台</div>
+
+    <!-- Topology diagram -->
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:clamp(16px,4vw,28px) clamp(14px,4vw,32px);">
+
+      <!-- Row 1: User interface layer -->
+      <div style="display:flex;align-items:center;gap:0;margin-bottom:6px">
+        <div style="font-size:10px;font-family:var(--ff-mono);color:var(--muted);width:60px;flex-shrink:0">用户侧</div>
+        <div class="topo-row-3cols" style="display:flex;gap:8px;flex:1">
+          <div style="flex:1;min-width:0;background:rgba(27,111,232,0.12);border:1px solid rgba(27,111,232,0.3);border-radius:8px;padding:10px 12px;text-align:center">
+            <div style="font-size:11px;font-weight:700;color:#60A5FA">飞书 Aily</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:3px">智能体 · 工作助手</div>
+          </div>
+          <div style="flex:1;min-width:0;background:rgba(0,212,180,0.1);border:1px solid rgba(0,212,180,0.25);border-radius:8px;padding:10px 12px;text-align:center">
+            <div style="font-size:11px;font-weight:700;color:var(--teal)">运营管理平台</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:3px">BI · 制造 · 研发</div>
+          </div>
+          <div style="flex:1;min-width:0;background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.25);border-radius:8px;padding:10px 12px;text-align:center">
+            <div style="font-size:11px;font-weight:700;color:#A78BFA">技术开发平台</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:3px">IDE · DevOps · Copilot</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Arrow down -->
+      <div style="display:flex;margin-bottom:6px">
+        <div style="width:60px;flex-shrink:0"></div>
+        <div style="flex:1;text-align:center;color:var(--dim);font-size:16px;letter-spacing:8px">↓ &nbsp; ↓ &nbsp; ↓</div>
+      </div>
+
+      <!-- Row 2: Gateway (the critical layer) -->
+      <div style="display:flex;align-items:center;gap:0;margin-bottom:6px">
+        <div style="font-size:10px;font-family:var(--ff-mono);color:var(--cyan);width:60px;flex-shrink:0;line-height:1.5">企业<br>自控层</div>
+        <div style="flex:1;background:rgba(0,200,255,0.08);border:2px solid rgba(0,200,255,0.4);border-radius:8px;padding:14px 16px;position:relative">
+          <div style="font-size:12px;font-weight:700;color:var(--cyan);margin-bottom:8px;display:flex;flex-wrap:wrap;align-items:center;gap:8px">🔀 企业 LLM Gateway <span style="font-size:10px;background:rgba(0,200,255,0.12);padding:2px 10px;border-radius:10px;font-family:var(--ff-mono)">数据不出企业边界</span></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span style="font-size:10px;background:rgba(255,255,255,0.06);border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted);font-family:var(--ff-mono)">数据分级路由</span>
+            <span style="font-size:10px;background:rgba(255,255,255,0.06);border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted);font-family:var(--ff-mono)">PII脱敏 / 数据掩码</span>
+            <span style="font-size:10px;background:rgba(255,255,255,0.06);border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted);font-family:var(--ff-mono)">Prompt注入防护</span>
+            <span style="font-size:10px;background:rgba(255,255,255,0.06);border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted);font-family:var(--ff-mono)">全链路调用审计</span>
+            <span style="font-size:10px;background:rgba(255,255,255,0.06);border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted);font-family:var(--ff-mono)">Token成本控制</span>
+            <span style="font-size:10px;background:rgba(255,255,255,0.06);border:1px solid var(--border);padding:3px 8px;border-radius:4px;color:var(--muted);font-family:var(--ff-mono)">熔断 / 限流</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Arrow: two directions -->
+      <div style="display:flex;margin-bottom:6px">
+        <div style="width:60px;flex-shrink:0"></div>
+        <div style="flex:1;display:flex;gap:10px;flex-wrap:wrap">
+          <div style="flex:1;text-align:center;color:var(--dim);font-size:13px;min-width:120px">↙ 非敏感 / 通用推理</div>
+          <div style="flex:1;text-align:center;color:var(--dim);font-size:13px;min-width:120px">↘ 敏感 / 高保密</div>
+        </div>
+      </div>
+
+      <!-- Row 3: LLM services split -->
+      <div style="display:flex;align-items:stretch;gap:0;margin-bottom:6px">
+        <div style="font-size:10px;font-family:var(--ff-mono);color:var(--muted);width:60px;flex-shrink:0;padding-top:8px;line-height:1.5">LLM<br>服务</div>
+        <div class="topo-row-3cols" style="flex:1;display:flex;gap:10px">
+          <div style="flex:1;min-width:0;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:12px 14px">
+            <div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:6px">☁️ 托管模型（企业协议）</div>
+            <div style="font-size:10px;color:var(--muted);line-height:1.9;font-family:var(--ff-mono)">
+              AWS Bedrock · Claude 3.x<br>
+              Azure OpenAI · GPT-4o<br>
+              <span style="color:rgba(245,158,11,0.6)">✓ 数据处理协议 DPA</span><br>
+              <span style="color:rgba(245,158,11,0.6)">✓ 不用于模型训练</span><br>
+              <span style="color:rgba(245,158,11,0.6)">✓ 数据留在所选区域</span>
+            </div>
+          </div>
+          <div style="flex:1;background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.25);border-radius:8px;padding:12px 16px">
+            <div style="font-size:11px;font-weight:700;color:#A78BFA;margin-bottom:6px">🏠 私有部署（高保密）</div>
+            <div style="font-size:10px;color:var(--muted);line-height:1.9;font-family:var(--ff-mono)">
+              Qwen2.5 / DeepSeek-V3<br>
+              本地GPU集群运行<br>
+              <span style="color:rgba(167,139,250,0.7)">✓ 工业配方/工艺秘密</span><br>
+              <span style="color:rgba(167,139,250,0.7)">✓ 财务/人事保密数据</span><br>
+              <span style="color:rgba(167,139,250,0.7)">✓ 完全离线不联网</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Arrow down -->
+      <div style="display:flex;margin-bottom:6px">
+        <div style="width:60px;flex-shrink:0"></div>
+        <div style="flex:1;text-align:center;color:var(--dim);font-size:16px">↓</div>
+      </div>
+
+      <!-- Row 4: Data layer -->
+      <div style="display:flex;align-items:center;gap:0">
+        <div style="font-size:10px;font-family:var(--ff-mono);color:var(--muted);width:60px;flex-shrink:0;line-height:1.5">本地<br>数据</div>
+        <div style="flex:1;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:12px 16px">
+          <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:8px">🗄️ 企业本地数据平台（数据不离境）</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span style="font-size:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);padding:3px 8px;border-radius:4px;color:var(--green);font-family:var(--ff-mono)">结构化数据库</span>
+            <span style="font-size:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);padding:3px 8px;border-radius:4px;color:var(--green);font-family:var(--ff-mono)">工业数据 / MES</span>
+            <span style="font-size:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);padding:3px 8px;border-radius:4px;color:var(--green);font-family:var(--ff-mono)">向量知识库 (RAG)</span>
+            <span style="font-size:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);padding:3px 8px;border-radius:4px;color:var(--green);font-family:var(--ff-mono)">飞书非结构化文档</span>
+            <span style="font-size:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);padding:3px 8px;border-radius:4px;color:var(--green);font-family:var(--ff-mono)">PLM / ERP / SCADA</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Note -->
+      <div style="margin-top:16px;padding:12px 16px;background:rgba(245,158,11,0.06);border-radius:6px;border:1px solid rgba(245,158,11,0.15);font-size:11px;color:var(--muted);line-height:1.8">
+        <strong style="color:var(--gold)">关键设计原则：</strong>
+        飞书 Aily 通过<strong style="color:var(--text)">自定义 API 接入</strong>指向企业自建的 LLM Gateway，而非直接调用公有 LLM API。
+        RAG 检索、NL2SQL 查询均在企业内部完成，<strong style="color:var(--text)">仅将脱敏后的 Prompt + 上下文</strong>发往托管模型；高保密场景全链路走私有部署模型，确保工艺秘密、财务数据不离境。
+        AWS Bedrock / Azure OpenAI 均提供<strong style="color:var(--text)">企业级数据处理协议（DPA）</strong>，承诺不将用户数据用于训练，满足合规要求。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<hr class="full-divider">
+<footer>
+  <span>企业智能操作系统架构设计 · Enterprise AI OS</span>
+  <span>企业级AI及数据架构师视角 · 2026</span>
+  <span>8层架构 · 三大平台 · 三阶段建设</span>
+</footer>
+
+<script>
+  // Reduce motion on mobile / WeChat for performance
+  const isMobile = window.innerWidth <= 600;
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Intersection Observer for fade-up animations
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(el => {
+      if (el.isIntersecting) {
+        el.target.classList.add('visible');
+      }
+    });
+  }, { threshold: isMobile ? 0.03 : 0.08 });
+
+  document.querySelectorAll('.fade-up').forEach(el => {
+    if (isMobile || prefersReduced) {
+      // Show immediately on mobile — no animation delay
+      el.classList.add('visible');
+    } else {
+      observer.observe(el);
+    }
+  });
+
+  // Stagger arch layer animations (desktop only)
+  document.querySelectorAll('.arch-layer').forEach((el, i) => {
+    if (isMobile || prefersReduced) {
+      el.style.opacity = '1';
+      el.style.transform = 'none';
+    } else {
+      el.style.opacity = '0';
+      el.style.transform = 'translateX(-16px)';
+      el.style.transition = `opacity 0.4s ease ${i * 0.06}s, transform 0.4s ease ${i * 0.06}s`;
+    }
+  });
+
+  const archObs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        document.querySelectorAll('.arch-layer').forEach(el => {
+          el.style.opacity = '1';
+          el.style.transform = 'translateX(0)';
+        });
+        archObs.disconnect();
+      }
+    });
+  }, { threshold: 0.05 });
+
+  const archSection = document.querySelector('.arch-layers');
+  if (archSection && !isMobile && !prefersReduced) archObs.observe(archSection);
+
+  // Active nav link
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.nav-links a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 120) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.style.color = a.getAttribute('href') === '#' + current ? 'var(--cyan)' : '';
+    });
+  }, { passive: true }); // passive: true for iOS scroll performance
+
+  // WeChat browser: fix 100vh issue
+  function setVh() {
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+  }
+  setVh();
+  window.addEventListener('resize', setVh, { passive: true });
+</script>
+</body>
+</html>
