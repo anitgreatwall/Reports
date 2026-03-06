@@ -194,17 +194,54 @@
     display: grid; grid-template-columns: 100px 1fr;
     border-radius: 8px; overflow: hidden;
     border: 1px solid var(--border);
-    cursor: pointer;
-    transition: all 0.25s;
+    cursor: grab;
+    transition: box-shadow 0.2s, border-color 0.2s, opacity 0.2s, transform 0.15s;
     position: relative;
+    user-select: none;
+    -webkit-user-select: none;
   }
   .arch-layer::before {
     content: ''; position: absolute; inset: 0;
     opacity: 0; transition: opacity 0.25s;
     pointer-events: none;
   }
-  .arch-layer:hover { border-color: var(--border2); transform: translateX(4px); }
+  .arch-layer:hover { border-color: var(--border2); }
   .arch-layer:hover::before { opacity: 1; }
+  .arch-layer.dragging {
+    cursor: grabbing !important;
+    opacity: 0.4;
+    transform: scale(0.98);
+    border-color: var(--cyan) !important;
+    box-shadow: 0 0 0 2px var(--cyan), 0 8px 32px rgba(0,200,255,0.25) !important;
+    z-index: 1000;
+  }
+  .arch-layer.drag-over {
+    border-color: rgba(0,200,255,0.7) !important;
+    box-shadow: 0 0 0 2px rgba(0,200,255,0.4), 0 4px 20px rgba(0,200,255,0.15) !important;
+    transform: translateY(-2px) scaleX(1.01);
+  }
+  .drag-hint {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; color: var(--dim); font-family: var(--ff-mono);
+    margin-bottom: 12px; padding: 8px 14px;
+    background: rgba(0,200,255,0.04); border: 1px solid rgba(0,200,255,0.1);
+    border-radius: 6px; width: fit-content;
+  }
+  .drag-hint svg { opacity: 0.5; }
+  .drag-reset-btn {
+    margin-left: auto; font-size: 10px; color: var(--muted);
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    border-radius: 4px; padding: 3px 10px; cursor: pointer;
+    font-family: var(--ff-mono); transition: all 0.2s;
+  }
+  .drag-reset-btn:hover { color: var(--cyan); border-color: rgba(0,200,255,0.4); background: rgba(0,200,255,0.08); }
+  .drag-handle {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 3px; opacity: 0.25; transition: opacity 0.2s;
+    pointer-events: none;
+  }
+  .arch-layer:hover .drag-handle { opacity: 0.6; }
+  .drag-handle span { display: block; width: 18px; height: 2px; background: var(--muted); border-radius: 1px; }
   .layer-tag {
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
@@ -715,8 +752,15 @@
     <h2 class="section-title">总体架构 — <span>8层体系</span></h2>
     <div class="section-line"></div>
   </div>
-  <div class="arch-layers fade-up">
-    <div class="arch-layer l7">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px" class="fade-up">
+    <div class="drag-hint">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="4" cy="3" r="1.2" fill="#6B8CAD"/><circle cx="10" cy="3" r="1.2" fill="#6B8CAD"/><circle cx="4" cy="7" r="1.2" fill="#6B8CAD"/><circle cx="10" cy="7" r="1.2" fill="#6B8CAD"/><circle cx="4" cy="11" r="1.2" fill="#6B8CAD"/><circle cx="10" cy="11" r="1.2" fill="#6B8CAD"/></svg>
+      可拖拽调整层级顺序
+    </div>
+    <button class="drag-reset-btn" id="resetLayersBtn">↺ 还原默认顺序</button>
+  </div>
+  <div class="arch-layers fade-up" id="archLayers">
+    <div class="arch-layer l7" data-id="l7">
       <div class="layer-tag"><span class="layer-num">L7</span><span class="layer-name">应用层</span></div>
       <div class="layer-body">
         <div class="layer-title">应用智能层</div>
@@ -725,8 +769,9 @@
           <span class="chip">飞书Lark</span><span class="chip">运营BI</span><span class="chip">AI Copilot</span><span class="chip">DSS决策支持</span>
         </div>
       </div>
+      <div class="drag-handle"><span></span><span></span><span></span></div>
     </div>
-    <div class="arch-layer l6">
+    <div class="arch-layer l6" data-id="l6">
       <div class="layer-tag"><span class="layer-num">L6</span><span class="layer-name">AI层</span></div>
       <div class="layer-body">
         <div class="layer-title">AI能力层</div>
@@ -735,8 +780,9 @@
           <span class="chip">LLM Gateway</span><span class="chip">LangGraph</span><span class="chip">RAG</span><span class="chip">Milvus</span><span class="chip">Embedding</span>
         </div>
       </div>
+      <div class="drag-handle"><span></span><span></span><span></span></div>
     </div>
-    <div class="arch-layer l5b">
+    <div class="arch-layer l5b" data-id="l5b">
       <div class="layer-tag"><span class="layer-num">L5b</span><span class="layer-name">语义层</span></div>
       <div class="layer-body">
         <div class="layer-title">业务语义层</div>
@@ -745,8 +791,9 @@
           <span class="chip">Ontology Objects</span><span class="chip">Knowledge Graph</span><span class="chip">GraphQL API</span><span class="chip">dbt语义</span><span class="chip">Neo4j</span>
         </div>
       </div>
+      <div class="drag-handle"><span></span><span></span><span></span></div>
     </div>
-    <div class="arch-layer l5">
+    <div class="arch-layer l5" data-id="l5a">
       <div class="layer-tag"><span class="layer-num">L5a</span><span class="layer-name">数智层</span></div>
       <div class="layer-body">
         <div class="layer-title">数据智能层</div>
@@ -755,8 +802,9 @@
           <span class="chip">DataHub</span><span class="chip">Feast特征</span><span class="chip">标签平台</span><span class="chip">Great Expectations</span>
         </div>
       </div>
+      <div class="drag-handle"><span></span><span></span><span></span></div>
     </div>
-    <div class="arch-layer l4">
+    <div class="arch-layer l4" data-id="l4">
       <div class="layer-tag"><span class="layer-num">L4</span><span class="layer-name">数据层</span></div>
       <div class="layer-body">
         <div class="layer-title">数据平台层</div>
@@ -765,8 +813,9 @@
           <span class="chip">Kafka/Flink</span><span class="chip">ClickHouse</span><span class="chip">数据湖</span><span class="chip">Airflow</span><span class="chip">MDM</span>
         </div>
       </div>
+      <div class="drag-handle"><span></span><span></span><span></span></div>
     </div>
-    <div class="arch-layer l3">
+    <div class="arch-layer l3" data-id="l3">
       <div class="layer-tag"><span class="layer-num">L3</span><span class="layer-name">基础层</span></div>
       <div class="layer-body">
         <div class="layer-title">基础设施层</div>
@@ -775,8 +824,9 @@
           <span class="chip">Kubernetes</span><span class="chip">GPU集群</span><span class="chip">Prometheus</span><span class="chip">ELK</span>
         </div>
       </div>
+      <div class="drag-handle"><span></span><span></span><span></span></div>
     </div>
-    <div class="arch-layer l2">
+    <div class="arch-layer l2" data-id="l2">
       <div class="layer-tag"><span class="layer-num">L2</span><span class="layer-name">安全层</span></div>
       <div class="layer-body">
         <div class="layer-title">安全合规层</div>
@@ -785,8 +835,9 @@
           <span class="chip">SSO/OAuth2</span><span class="chip">RBAC</span><span class="chip">DLP</span><span class="chip">Prompt防护</span><span class="chip">等保三级</span>
         </div>
       </div>
+      <div class="drag-handle"><span></span><span></span><span></span></div>
     </div>
-    <div class="arch-layer l1">
+    <div class="arch-layer l1" data-id="l1">
       <div class="layer-tag"><span class="layer-num">L1</span><span class="layer-name">接入层</span></div>
       <div class="layer-body">
         <div class="layer-title">接入集成层</div>
@@ -795,6 +846,7 @@
           <span class="chip">Kong/APISIX</span><span class="chip">飞书OpenAPI</span><span class="chip">CDC</span><span class="chip">Webhook</span>
         </div>
       </div>
+      <div class="drag-handle"><span></span><span></span><span></span></div>
     </div>
   </div>
 </section>
@@ -1564,7 +1616,154 @@
     });
   }, { passive: true }); // passive: true for iOS scroll performance
 
-  // ─── CURSOR EFFECTS (desktop only) ───
+  // ─── DRAG & DROP ARCH LAYERS (Pointer Events — smooth & flexible) ───
+  (function() {
+    const container = document.getElementById('archLayers');
+    const resetBtn = document.getElementById('resetLayersBtn');
+    if (!container) return;
+
+    const originalOrder = Array.from(container.children).map(el => el.dataset.id);
+
+    let dragging = null;   // the cloned ghost element
+    let source   = null;   // original layer element
+    let offsetX  = 0, offsetY = 0;
+    let ghost    = null;
+
+    // Inject ghost styles
+    const s = document.createElement('style');
+    s.textContent = `
+      .arch-layer.drag-source {
+        opacity: 0.25 !important;
+        transform: none !important;
+        pointer-events: none;
+      }
+      .drag-ghost {
+        position: fixed; pointer-events: none; z-index: 9000;
+        border-radius: 8px; overflow: hidden;
+        box-shadow: 0 16px 48px rgba(0,0,0,0.6), 0 0 0 2px rgba(0,200,255,0.7);
+        transition: box-shadow 0.1s;
+        will-change: transform;
+        opacity: 0.95;
+      }
+      .arch-layer.drop-target {
+        border-color: rgba(0,200,255,0.8) !important;
+        box-shadow: 0 0 0 2px rgba(0,200,255,0.35), inset 0 0 20px rgba(0,200,255,0.06) !important;
+        transform: scaleX(1.012) !important;
+        transition: all 0.12s ease !important;
+      }
+    `;
+    document.head.appendChild(s);
+
+    function getLayers() {
+      return Array.from(container.querySelectorAll('.arch-layer:not(.drag-source)'));
+    }
+
+    function getInsertTarget(clientY) {
+      for (const el of getLayers()) {
+        const r = el.getBoundingClientRect();
+        if (clientY < r.top + r.height * 0.5) return { el, before: true };
+      }
+      return { el: null, before: false };
+    }
+
+    function clearDropTargets() {
+      container.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+    }
+
+    function onPointerDown(e) {
+      // Only left-click / touch, ignore clicks on chips/links
+      if (e.button !== undefined && e.button !== 0) return;
+      if (e.target.closest('a, button')) return;
+
+      source = e.currentTarget;
+      const rect = source.getBoundingClientRect();
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+
+      // Create ghost clone
+      ghost = source.cloneNode(true);
+      ghost.className = 'drag-ghost';
+      ghost.style.width  = rect.width  + 'px';
+      ghost.style.height = rect.height + 'px';
+      ghost.style.left   = rect.left   + 'px';
+      ghost.style.top    = rect.top    + 'px';
+      // Copy computed background so colors look right
+      ghost.style.background = getComputedStyle(source).background;
+      document.body.appendChild(ghost);
+
+      source.classList.add('drag-source');
+
+      document.addEventListener('pointermove', onPointerMove, { passive: true });
+      document.addEventListener('pointerup',   onPointerUp);
+      document.addEventListener('pointercancel', onPointerUp);
+      e.preventDefault();
+    }
+
+    function onPointerMove(e) {
+      if (!ghost) return;
+      const x = e.clientX - offsetX;
+      const y = e.clientY - offsetY;
+      ghost.style.left = x + 'px';
+      ghost.style.top  = y + 'px';
+
+      // Highlight drop target
+      clearDropTargets();
+      const { el } = getInsertTarget(e.clientY);
+      if (el && el !== source) el.classList.add('drop-target');
+    }
+
+    function onPointerUp(e) {
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup',   onPointerUp);
+      document.removeEventListener('pointercancel', onPointerUp);
+
+      if (!ghost || !source) return;
+
+      // Animate ghost snapping to final position
+      const { el, before } = getInsertTarget(e.clientY);
+      if (el && el !== source) {
+        before
+          ? container.insertBefore(source, el)
+          : container.insertBefore(source, el.nextSibling);
+      } else if (!el) {
+        container.appendChild(source);
+      }
+
+      // Snap ghost to new position then remove
+      const finalRect = source.getBoundingClientRect();
+      ghost.style.transition = 'left 0.18s ease, top 0.18s ease, opacity 0.18s ease, box-shadow 0.18s ease';
+      ghost.style.left    = finalRect.left + 'px';
+      ghost.style.top     = finalRect.top  + 'px';
+      ghost.style.opacity = '0';
+      ghost.style.boxShadow = 'none';
+      setTimeout(() => { ghost && ghost.remove(); ghost = null; }, 200);
+
+      source.classList.remove('drag-source');
+      clearDropTargets();
+      source = null;
+    }
+
+    // Attach to each layer
+    container.querySelectorAll('.arch-layer').forEach(layer => {
+      layer.setAttribute('draggable', 'false'); // disable native drag
+      layer.style.touchAction = 'none';
+      layer.addEventListener('pointerdown', onPointerDown);
+    });
+
+    // Reset button
+    resetBtn.addEventListener('click', () => {
+      originalOrder.forEach(id => {
+        const el = container.querySelector(`[data-id="${id}"]`);
+        if (el) container.appendChild(el);
+      });
+      resetBtn.textContent = '✓ 已还原';
+      resetBtn.style.color = 'var(--teal)';
+      setTimeout(() => {
+        resetBtn.textContent = '↺ 还原默认顺序';
+        resetBtn.style.color = '';
+      }, 1500);
+    });
+  })();
   if (!isMobile) {
 
     // Inject cursor styles
